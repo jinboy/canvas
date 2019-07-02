@@ -1,0 +1,260 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+<title>水印demo</title>
+<link href="https://cdnjs.cloudflare.com/ajax/libs/jqueryui/1.12.1/jquery-ui.css" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jquery/3.3.1/jquery.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jqueryui/1.12.1/jquery-ui.min.js"></script>
+<style type="text/css">
+	span:hover:after{
+	  content:'';
+	  display: inline-block;
+      width:20px;
+      height:20px;
+	  border-radius:10px;/**控制形状**/
+	  background: url("icon Delete item.png") no-repeat center;
+	  position: absolute;
+	  top: 0px;
+	}
+</style>
+</head>
+
+<body>
+	<button id="addWatermarkBtn">增加水印</button>
+	<button id="chooseBackgroundImageBtn">选择背景图</button>
+	<button id="chooseModelBtn">选择模板</button>
+	<button id="saveModelBtn">保存模板</button>
+	<div id="parent" style="position:relative" >
+		<canvas id='myCanvas' ></canvas>
+
+		<span id="spanTextAdd" contenteditable="true"></span>
+		<!-- <input type="range" id="scale-range" name="" min="0.5" max="3.0" step="0.01" value="1.0" style="display: block;margin: 20px auto;width: 800px;" /> -->
+	</div>
+	
+<script type="text/javascript">
+$(function(){
+
+    // 字体属性
+    function mergeOptions(options) {
+        return Object.assign({
+            width: 250,
+            height: 80,
+            color: '#ebebeb',
+            alpha: 0.8,
+            font: '10px Arial'
+        }, options);
+    }
+
+
+    var canvas = document.getElementById("myCanvas");// 创建画布，获得canvas对象
+    var watermarkSpanArray = new Array();
+    var watermarkCanvasArray = new Array();
+    var count = 0;
+    var sObj;
+	//var slider = document.getElementById('scale-range')// 获取滑杆对象
+
+
+	var img = new Image();
+    var left = 50;
+    var top = 20;
+    var text = "请输入内容";// TODO 可更改
+//	var value = 40 * slider.value;
+    var fontSize = 40;
+    console.log("嘿")
+    console.log(fontSize)
+
+
+    console.log("略")
+    console.log(fontSize)
+
+    canvas.width = 800;
+    canvas.height = 480;
+
+    img.src = 'img.jpg';// TODO 选择的背景图
+    img.onload = function() {//图片加载完成，才可处理
+        getImg();
+    };
+
+    /* ********************** 添加水印 start ******************************* */
+    // 单击添加水印按钮
+	$("#addWatermarkBtn").click(function(){
+		// TODO 这边先写死，后续会有span1、span2、span3.....
+		// 每点击一次会添加一个canvas
+        $('#parent').append('<canvas id="watermarkCanvas-'+ count +'">浏览器不支持canvas</canvas>')
+		$("#parent").append('<span id="spanTextAdd-'+ count +'" contenteditable="true">你好啊</span>')
+        watermarkCanvasArray[count] = document.getElementById("watermarkCanvas-"+ count +"");
+		watermarkSpanArray[count] = document.getElementById("spanTextAdd-"+ count +"");
+
+
+		count++;// span计数，这就是不是直接删除span的原因
+		console.log(watermarkSpanArray.length);
+		console.log(watermarkSpanArray);
+        console.log(watermarkCanvasArray);
+		console.log(count);
+		console.log("==================");
+		watermarkSpanArray[count-1].style = "color: red;position:absolute;left:60px;top:60px;line-height:80px;";
+		// 批量添加span ok
+
+		spanObj = document.getElementById("spanTextAdd");
+		spanObj.style = "color: red;position:absolute;left:20px;top:20px;line-height:80px;";
+//		addText();
+		addTextJin(count);
+
+		
+		sObj = "#spanTextAdd-"+ (count-1) +"";
+		// 拖拉水印
+		$(sObj).draggable({
+			containment: "#myCanvas",
+			stop: function(event) {
+				// addText()
+				addTextJin(count);
+			}}).click(function (e){  
+			//判断是不是点击的删除按钮
+			if(e.offsetX > $(this).width()){
+				sObj = document.getElementById("spanTextAdd-"+ (count-1) +"");
+				sObj.innerHTML = "已删除";// 删除即清空textArea
+				// TODO 这边也直接导致不能重复添加的bug
+				getImg();
+				return;
+			}
+			$(this).draggable({ disabled: false });  
+			$(this).css('backgroundColor', 'transparent');  
+		}).dblclick(function (){  
+		$(this).draggable({ disabled: true });  
+		$(this).css('backgroundColor', '#FFFF6F');  
+		getImg();
+
+		// 失去焦点 判断文字有无改变
+		$(sObj).focusout(function() {
+			text = $('span').text();
+			// addText();
+			addTextJin(count);
+		});
+	});
+
+	})
+
+	// 添加水印span的textArea
+	function addText(){
+		spanObj = document.getElementById("spanTextAdd");
+		spanObj.innerHTML = text;
+		$('#spanTextAdd').css("font-size",fontSize + "px")
+		$('#spanTextAdd').css("line-height",fontSize + "px")
+        canvas.width = 800;
+        canvas.height = 480;
+		var context = canvas.getContext("2d");
+        context.fillStyle = "rgba(255, 255, 255, 0)";
+        context.fillRect(0, 0, canvas.width, canvas.height);
+        context.drawImage(img,0,0, canvas.width, canvas.height);
+        context.save();// 用来保存Canvas的状态。save之后，可以调用Canvas的平移、放缩、旋转、错切、裁剪等操作。
+        context.fillStyle = "red"
+        context.font = fontSize + "px Arial";
+        context.textBaseline = 'top';//更改字号后，必须重置对齐方式，否则居中麻烦。设置文本的垂直对齐方式
+        context.textAlign = 'left';
+		left = parseFloat($('#spanTextAdd').css("left"));
+		top = parseFloat($('#spanTextAdd').css("top"));
+        context.fillText(text,left,top);
+	}
+
+    // 测试添加777
+	function addTextJin(count) {
+		// 这边还是通过jquery获取
+		watermarkSpanObj = watermarkSpanArray[count-1];// <span id="spanTextAdd-1" style="color: red; position: absolute; left: 60px; top: 60px; line-height: 80px;" contenteditable="true">
+        watermarkCanvasItem = watermarkCanvasArray[count-1];
+		console.log("++++++++");
+		sObj = "#spanTextAdd-"+ (count-1) +"";
+		console.log(sObj);
+		console.log($("#spanTextAdd-"+ count-1 +""));
+		console.log(watermarkSpanObj);
+        console.log(watermarkCanvasItem);
+		watermarkSpanObj.innerHTML = "777";
+		$(sObj).css("font-size",fontSize + "px")
+		$(sObj).css("line-height",fontSize + "px")
+
+        canvas.width = 800;
+        canvas.height = 480;
+		var context = canvas.getContext("2d");
+        context.fillStyle = "rgba(255, 255, 255, 0)";
+        context.fillRect(0, 0, canvas.width, canvas.height);
+        context.drawImage(img,0,0, canvas.width, canvas.height);
+        context.save();// 用来保存Canvas的状态。save之后，可以调用Canvas的平移、放缩、旋转、错切、裁剪等操作。
+
+        context.fillStyle = "red"
+        context.font = fontSize + "px Arial";
+        context.textBaseline = 'top';//更改字号后，必须重置对齐方式，否则居中麻烦。设置文本的垂直对齐方式
+        context.textAlign = 'left';
+		left = parseFloat($(sObj).css("left"));
+		top = parseFloat($(sObj).css("top"));
+        context.fillText("777",left,top);
+        context.fillText("88",left,top);
+
+	}
+	/* ********************** 添加水印 end ******************************* */
+
+	// 绘制背景图
+	function getImg(){
+//        canvas.width=img.width;
+//        canvas.height=img.height;
+ 		canvas.width = 800;
+        canvas.height = 480;
+		var context = canvas.getContext("2d");
+        context.fillStyle = "rgba(255, 255, 255, 0)";
+        context.fillRect(0, 0, canvas.width, canvas.height);// x,y,width,height
+        context.drawImage(img,0,0, canvas.width, canvas.height);
+	}
+
+	// // 拖拉
+	// $('span').draggable({
+	// 	containment: "#myCanvas",
+	// 	stop: function(event) {
+	// 		addText()
+	// }}).click(function (e){  
+	// 	//判断是不是点击的删除按钮
+	// 	if(e.offsetX > $(this).width()){
+	// 		spanObj = document.getElementById("spanTextAdd");
+	// 		spanObj.innerHTML = "已删除";// 删除即清空textArea
+	// 		// TODO 这边也直接导致不能重复添加的bug
+	// 		getImg();
+	// 		return;
+	// 	}
+	// 	$(this).draggable({ disabled: false });  
+	// 	$(this).css('backgroundColor', 'transparent');  
+	// }).dblclick(function (){  
+	// 	$(this).draggable({ disabled: true });  
+	// 	$(this).css('backgroundColor', '#FFFF6F');  
+	// 	getImg();
+	// });
+	
+	// // 失去焦点 判断文字有无改变
+	// $('#spanTextAdd').focusout(function() {
+	// 	text = $('#spanTextAdd').text();
+	// 	addText();
+	// });
+
+	// 滚轮更改文字大小
+	$('span').on("mousewheel",function(event,delta){
+		console.log(event.wheelDelta,event.originalEvent.wheelDelta);
+		if(event.originalEvent.wheelDelta>0){
+			fontSize += 2;
+		}else{
+			fontSize -= 2;
+		}
+		event.stopPropagation();
+		event.preventDefault();
+		addText(count);
+	})
+
+    // 鼠标于滑动条上滑动
+    // slider.onmousemove = function() {// 开销比onchange高
+    //     var scale = slider.value// 将scale设置为当前slider的value的值
+    //     console.log("突突")
+    //     console.log(scale)
+    //     $('#spanTextAdd').css("font-size",fontSize * scale + "px")
+    // }
+
+	
+})
+</script>
+</body>
+</html>

@@ -1,0 +1,280 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8"/>
+    <title>水印demo</title>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/jqueryui/1.12.1/jquery-ui.css" rel="stylesheet">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jquery/3.3.1/jquery.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jqueryui/1.12.1/jquery-ui.min.js"></script>
+    <script src="scripts/vendor.js"></script>
+    <script src="scripts/scripts.js"></script>
+    <link rel="stylesheet" href="styles/styles.css">
+    <style type="text/css">
+        canvas:hover:after {
+            content: '';
+            display: inline-block;
+            width: 20px;
+            height: 20px;
+            border-radius: 10px; /**控制形状**/
+            background: url("icon Delete item.png") no-repeat center;
+            position: absolute;
+            top: 0px;
+        }
+    </style>
+</head>
+
+<body>
+<div style="margin: 0 auto;">
+    <button id="addWatermarkBtn">增加水印</button>
+    <button id="chooseBackgroundImageBtn">选择背景图</button>
+    <button id="chooseModelBtn">选择模板</button>
+    <button id="saveModelBtn">保存模板</button>
+</div>
+
+<div id="parent" style="position:relative">
+    <canvas id='myCanvas' style="display: block; margin: 0 auto;border: 1px solid #aaa;">你的浏览器不支持canvas</canvas>
+    <canvas id="watermarkCanvas" style="display: block; margin: 0 auto;border: 1px solid #aaa;">你的浏览器不支持canvas</canvas>
+    <canvas id="watermarkCanvas2" style="display: block; margin: 0 auto;border: 1px solid #aaa;">你的浏览器不支持canvas</canvas>
+    <canvas id="magnifying-glass" style="display: none;margin: 0 auto;border: 1px solid #aaa;">
+        你的浏览器不支持canvas
+    </canvas>
+    <span id="info">按住鼠标左键绘制</span>
+    <span id="spanTextAdd" contenteditable="true"></span>
+    <input type="range" id="scale-range" name="" min="0.5" max="3.0" step="0.01" value="1.0"
+           style="display: block;margin: 20px auto;width: 800px;"/>
+</div>
+
+<script type="text/javascript">
+
+
+    $(function () {
+        var canvas = document.getElementById("myCanvas");// 创建画布，获得主canvas对象
+        var ctx = canvas.getContext("2d");
+        var watermarkCanvas = document.getElementById("watermarkCanvas");
+        var watermarkCtx = watermarkCanvas.getContext("2d");
+        var watermarkCanvas2 = document.getElementById("watermarkCanvas2");
+        var watermarkCtx2 = watermarkCanvas2.getContext("2d");
+        var magnifyingGlassCanvas = document.getElementById('magnifying-glass')// 绘制放大镜canvas
+        var magnifyingGlassContext = magnifyingGlassCanvas.getContext('2d')// 上下文环境
+        var image = new Image();
+        var isMouseDown = false;
+
+        var slider = document.getElementById("scale-range");
+        var scale = slider.value;
+        var originPoint = {x: 180, y: 120};
+
+        var magnifyingGlassScale;
+
+        var watermarkCanvasArray = new Array();
+        var count = 0;
+        var i;
+        var watermarkCanvasItem;
+        var options;
+
+//        $("body").on('click', function(e) {
+//            var element = e.target;
+//            console.log("&&&&&&&&&&&&&&&&&&");
+//            console.log(e);
+//            console.log(element);
+//            console.log("&&&&&&&&&&&&&&&&&&");
+//        })
+
+
+        $('body').click(function (event) {
+            var element = event.target;
+            console.log("&&&&&&&&&&&&&&&&&&");
+            console.log(event);
+            console.log(element);
+            console.log("&&&&&&&&&&&&&&&&&&");
+        });
+
+
+        $(document).ready(function () {
+            canvas.width = 800;
+            canvas.height = 480;
+
+
+            image.src = "img.jpg";
+            console.log("gougougou");
+
+            image.onload = function () {//图片加载完成，才可处理
+
+                /* ********************** 添加水印 start ******************************* */
+                // 单击添加水印按钮
+                $("#addWatermarkBtn").click(function () {
+
+                    var imageWidth = canvas.width
+                    var imageHeight = canvas.height
+
+                    var dx = canvas.width / 2 - imageWidth / 2;
+                    var dy = canvas.height / 2 - imageHeight / 2;
+                    // 绘制新的canvas画布之前，清空canvas
+                    ctx.clearRect(0, 0, canvas.width, canvas.height)// 清空整个canvas
+                    ctx.drawImage(image, dx, dy, imageWidth, imageHeight);// 重新绘制图片
+
+                    // TODO 这边先写死，后续会有span1、span2、span3.....
+                    // 每点击一次会添加一个canvas
+                    $('#parent').append('<canvas id="watermarkCanvas-' + count + '" style="display: block;margin: 0 auto;border: 1px solid #aaa;">浏览器不支持canvas</canvas>')
+                    watermarkCanvasArray[count] = document.getElementById("watermarkCanvas-" + count + "");
+
+                    console.log(watermarkCanvasArray.length);
+                    console.log(watermarkCanvasArray);
+                    console.log(count);
+                    console.log("==================");
+
+                    drawImageByScale(originPoint, count, scale);
+
+                    count++;// span计数，这就是不是直接删除span的原因
+                });
+                /* ********************** 添加水印 end ******************************* */
+
+                slider.onmousemove = function () {// 开销比onchange高
+                    scale = slider.value// 将scale设置为当前slider的value的值
+                    drawImageByScale(originPoint, 0, scale)// 绘制当前新的scale值对应的图像
+                }
+
+            };
+        });
+
+
+        // 字体属性
+        function mergeOptions(options) {
+            return Object.assign({
+                width: 250,
+                height: 80,
+                color: '#ebebeb',
+                alpha: 0.8,
+                font: '10px Arial'
+            }, options);
+        }
+
+        // 坐标转换
+        function windowToCanvas(x, y) {
+            var bbox = canvas.getBoundingClientRect()// 获得canvas的包围盒，包围盒对象中存储了canvas画布的距离以及位置信息
+            return {x: x - bbox.left, y: y - bbox.top}
+        }
+
+        // 鼠标按下触发
+        canvas.onmousedown = function (e) {
+            e.preventDefault()// 禁止默认事
+            if (e.button == 0) {
+                console.log("鼠标左键按下");
+                var point = windowToCanvas(e.clientX, e.clientY)
+                console.log(point.x, point.y)
+
+                isMouseDown = true
+                //            drawCanvasWithMagnifer(true, point)// 绘制放大镜
+                drawImageByScale(point, 0, scale);
+                document.getElementById('info').style.display = 'none'; //隐藏提示文字内容
+            } else if (e.button == 1) {
+                console.log("鼠标中键按下");
+            } else if (e.button == 2) {
+                console.log("鼠标右键按下");
+            }
+
+        }
+
+        // 鼠标移动触发
+        canvas.onmousemove = function (e) {
+            e.preventDefault()// 禁止默认事件
+            if (isMouseDown == true) {
+                var point = windowToCanvas(e.clientX, e.clientY)
+                console.log(point.x, point.y)
+                //                drawCanvasWithMagnifer(true, point)// 绘制放大镜
+                drawImageByScale(point, 0, scale);
+            }
+
+        }
+
+        // 鼠标up触发
+        canvas.onmouseup = function (e) {
+            e.preventDefault()// 禁止默认事件
+            isMouseDown = false
+            //            drawCanvasWithMagnifer(false)
+        }
+
+        // 鼠标移出canvas触发
+        canvas.onmouseout = function (e) {
+            e.preventDefault()// 禁止默认事件
+            isMouseDown = false
+            //            drawCanvasWithMagnifer(false)
+        }
+
+        function changeFontSizeByScale(scale, fontSize) {
+            return fontSize * scale
+        }
+
+        // 绘制放大镜
+        function drawCanvasWithMagnifer(isShowMagnifer, point) {
+            // 1. 重绘整个canvas
+            ctx.clearRect(0, 0, canvas.width, canvas.height)
+            // 2.
+            ctx.drawImage(image, 0, 0, canvas.width, canvas.height)
+            if (isShowMagnifer == true) {
+                // 3. 绘制放大镜
+                drawMagnifier(point)
+            }
+        }
+
+        function drawImageByScale(point, i, scale) {
+
+            console.log("^^^^^^^^^");
+            console.log(point);
+
+
+            // 离屏水印
+            watermarkCanvas.width = 300;
+            watermarkCanvas.height = 100;
+            watermarkCtx.font = "bold 50px Arial";
+            watermarkCtx.lineWidth = "1";
+            watermarkCtx.fillStyle = "rgba(0, 0, 0, 1)";
+            watermarkCtx.textBaseline = "middle";
+            watermarkCtx.fillText("==jinjin==", 20, 50);
+
+            watermarkCanvas2.width = 300;
+            watermarkCanvas2.height = 100;
+            watermarkCtx2.font = "bold 50px Arial";
+            watermarkCtx2.lineWidth = "1";
+            watermarkCtx2.fillStyle = "rgba(0, 0, 0, 1)";
+            watermarkCtx2.textBaseline = "middle";
+            watermarkCtx2.fillText("==tutu==", 20, 50);
+
+            watermarkCanvasItem = document.getElementById("watermarkCanvas-" + i + "");
+
+            console.log("44444444");
+            console.log(watermarkCanvasItem);
+            var watermarkCanvasItemCtx = watermarkCanvasItem.getContext("2d");
+            watermarkCanvasItem.width = 300;
+            watermarkCanvasItem.height = 100;
+            watermarkCanvasItemCtx.font = "bold 50px Arial";
+            watermarkCanvasItemCtx.lineWidth = "1";
+            watermarkCanvasItemCtx.fillStyle = "rgba(0, 0, 0, 1)";
+            watermarkCanvasItemCtx.textBaseline = "middle";
+            watermarkCanvasItemCtx.fillText("==YYYYYY==", 20, 50);
+
+            // 背景图片大小不变
+            var imageWidth = canvas.width;
+            var imageHeight = canvas.height;
+
+            // 水印大小岁scale变化
+            var waterMarkWidth = watermarkCanvas.width * scale;
+            var waterMarkHeight = watermarkCanvas.height * scale;
+
+            var dx = canvas.width / 2 - imageWidth / 2;
+            var dy = canvas.height / 2 - imageHeight / 2;
+            // 绘制新的canvas画布之前，清空canvas
+            ctx.clearRect(0, 0, canvas.width, canvas.height)// 清空整个canvas
+            ctx.drawImage(image, dx, dy, imageWidth, imageHeight);// 重新绘制图片
+
+            // 添加若干水印
+            // 3.离屏canvas，将第二个canvas中的内容加载到第一个canvas右下角
+
+            ctx.drawImage(watermarkCanvasItem, point.x - watermarkCanvas2.width / 2, point.y - watermarkCanvas2.height / 2, waterMarkWidth, waterMarkHeight);
+            //            ctx.drawImage(watermarkCanvas2, point.x - watermarkCanvas2.width / 2, point.y - watermarkCanvas2.height / 2);
+        }
+
+
+    })
+</script>
+</body>
+</html>

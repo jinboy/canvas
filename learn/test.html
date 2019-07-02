@@ -1,0 +1,26 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+	<meta charset="UTF-8">
+	<title>Document</title>
+</head>
+<body>
+	<canvas id="canvas"></canvas>
+</body>
+
+<script type="text/javascript">
+	var img = new Image();   // 创建img元素
+	var canvas = document.getElementById('canvas')
+	var ctx = canvas.getContext('2d');
+	img.src = 'img.jpg';
+ 	
+
+ 	canvas.width = 800
+ 	canvas.height = 480
+	img.onload = function(){
+	    ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+	    ctx.fillText("大前端", 1100, 260);
+	    ctx.font="30px yahei";   //设置水印文字
+	}
+</script>
+</html>

@@ -1,0 +1,83 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+	<meta charset="UTF-8">
+	<title>Document</title>
+	<script src="modernizr.js"></script>
+	<script type="text/javascript">
+		
+		window.addEventListener('load', eventWindowLoaded, false);
+		function eventWindowLoaded() {
+			canvasApp();
+		}
+
+		function canvasSupport() {
+			return Modernizr.canvas;
+		}
+
+		function canvasApp() {
+			if(!canvasSupport()){
+				return;
+			}
+
+			var canvas = document.getElementById("canvas");
+			var context = canvas.getContext("2d");
+
+			drawScreen();
+
+			
+			var formElement = document.getElementById("textBox");
+			formElement.addEventListener('keyup', textBoxChanged, false);
+			
+
+			function drawScreen(){ 
+				var message = "999";
+
+
+				// 背景
+				context.fillStyle = "#ffffaa";
+				context.fillRect(0, 0, 500, 300);
+
+				// 文字
+				context.fillStyle = "#000000";
+				context.font = "20px Sans-Serif";
+				context.textBaseline = "top";
+				context.fillText(message, 195, 80);
+
+				// 图像
+				/*
+				var image = new Image();
+				image.onload = function() {
+					context.drawImage(image, 0, 0)
+				}
+				image.src = "img.jpg";
+				*/
+				
+
+				// 边框
+				context.strokeStyle = "#000000";
+				context.strokeRect(5, 5, 490, 290);
+			}
+			var formElement = document.getElementById("textBox");
+			formElement.addEventListener('keyup', textBoxChanged, false);
+			function textBoxChanged(e) {
+				message = e.target.value;
+				drawScreen();	
+			}
+
+		}
+
+
+	</script>
+</head>
+<body>
+	<div>
+		<canvas id="canvas" width="500" height="300">
+			浏览器不支持canvas
+		</canvas>
+	</div>
+	<form>
+		Text: <input id="textBox" placeholder="请输入内容" type="" name="" />
+	</form>
+</body>
+</html>

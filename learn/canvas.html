@@ -1,0 +1,219 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+	<meta charset="UTF-8">
+	<title>canvas demo</title>
+</head>
+<body>
+	<div class="canvas">
+		<canvas id="canvas" style="display: block;margin: 0 auto;border: 1px solid #aaa;">
+		你的浏览器不支持canvas
+		</canvas>
+		<canvas id="watermark-canvas" style="display: none;margin: 0 auto;border: 1px solid #aaa;">
+			你的浏览器不支持canvas
+		</canvas>
+		<canvas id="magnifying-glass" style="display: none;margin: 0 auto;border: 1px solid #aaa;">
+			你的浏览器不支持canvas
+		</canvas>
+	</div>
+	
+	<div class="cls-edit-area">
+		<input type="range" id="scale-range" name="" min="0.5" max="3.0" step="0.01" value="1.0" style="display: block;margin: 20px auto;width: 800px;" />
+		<input type="range" id="watermark-scale-range" name="" min="0.1" max="3.0" step="0.01" value="1.0" style="display: block;margin: 20px auto;width: 800px;" />
+	</div>
+
+	<div class="cls-button">
+		<button>选择背景图</button>
+		<button>选择模板</button>
+		<button>保存模板</button>
+	</div>
+	
+</body>
+
+<style type="text/css">
+	.cls-button {
+		width: 800px;
+		margin: 0 auto;
+		display: flex;
+		justify-content: space-around;
+	}
+
+	.cls-edit-area {
+		width: 800px;
+		height: 400px;
+		margin: 0 auto;
+		background-color: #444;
+	}
+</style>
+
+<script type="text/javascript">
+	var canvas = document.getElementById('canvas')// 获得canvas对象
+	var context = canvas.getContext('2d')// 获得2d画布的上下文接口环境
+
+	var watermarkCanvas = document.getElementById('watermark-canvas')// 绘制水印canvas
+	var watermarkContext = watermarkCanvas.getContext('2d')
+
+	var magnifyingGlassCanvas = document.getElementById('magnifying-glass')// 绘制放大镜canvas
+	var magnifyingGlassContext = magnifyingGlassCanvas.getContext('2d')// 上下文环境
+
+	var slider = document.getElementById('scale-range')// 获取滑杆对象
+	var sliderWatermark = document.getElementById('watermark-scale-range')
+
+	var image = new Image()// 设置image对象
+	var isMouseDown = false
+	var magnifyingGlassScale
+
+	// 使用context进行绘制
+	window.onload = function() {
+		canvas.width = 800
+		canvas.height = 480
+
+		// context.fillStyle = "red"
+		// context.fillRect(100, 100, 400, 400)
+
+		var scale = slider.value// 获取滑动条slider的值
+		console.log(scale)
+
+		image.src = "img.jpg"// 引入图片
+		image.onload = function() {// 图片加载完成后渲染
+			// context.drawImage(image, 0, 0)// 绘制画布，超过canvas部分会被裁剪掉
+			// context.drawImage(image, 0, 0, canvas.width, canvas.height)// 绘制画布，额外指定图片宽度、高度
+			// context.drawImage(image, 100, 100, 80, 80, 0, 0, canvas.width, canvas.height)// 抠出原图中的100，100位置的宽80高80大小指定部分渲染到canvas 0，0位置的canvas宽、canvas高的部分
+
+			drawImageByScale(scale)
+			slider.onmousemove = function() {// 开销比onchange高
+				scale = slider.value// 将scale设置为当前slider的value的值
+				drawImageByScale(scale)// 绘制当前新的scale值对应的图像
+			}
+			magnifyingGlassCanvas.width = image.width
+			magnifyingGlassCanvas.height = image.height
+			magnifyingGlassScale = magnifyingGlassCanvas.width / canvas.width
+			magnifyingGlassContext.drawImage(image, 0, 0)
+		}
+
+		// 安装水印canvas
+		watermarkCanvas.width = 600// auto
+		watermarkCanvas.height = 100// auto
+		var watermarkScale = sliderWatermark.value
+		console.log(watermarkScale)
+		var fontSize = "80px"
+		watermarkContext.font = "bold 50px Arial"
+		watermarkContext.font = watermarkContext.font.replace(/\d+(\.\d+)?(px|pt|em|%)/i, changeFontSizeByScale(watermarkScale, fontSize));//替换字体大小
+		watermarkContext.fillStyle = "rgba(0, 0, 0, 0.5)"
+		watermarkContext.textBaseline = "middle"
+		watermarkContext.fillText("== tabjin == == tabjin ==", 30, 50)
+	}
+
+	// 坐标转换
+	function windowToCanvas(x, y) {
+		var bbox = canvas.getBoundingClientRect()// 获得canvas的包围盒，包围盒对象中存储了canvas画布的距离以及位置信息 
+		return {x: x-bbox.left, y: y-bbox.top}
+	}
+
+	// 鼠标按下触发
+	canvas.onmousedown = function(e) {
+		e.preventDefault()// 禁止默认事
+
+		var point = windowToCanvas(e.clientX, e.clientY)
+		console.log(point.x, point.y)
+
+		isMouseDown = true
+		drawCanvasWithMagnifer(true, point)// 绘制放大镜
+
+	}
+
+	// 鼠标移动触发
+	canvas.onmousemove = function(e) {
+		e.preventDefault()// 禁止默认事件
+		if(isMouseDown == true) {
+			var point = windowToCanvas(e.clientX, e.clientY)
+			console.log(point.x, point.y)
+			drawCanvasWithMagnifer(true, point)// 绘制放大镜
+		}
+
+	}
+
+	// 鼠标up触发
+	canvas.onmouseup = function(e) {
+		e.preventDefault()// 禁止默认事件
+		isMouseDown = false
+		drawCanvasWithMagnifer(false)
+	}
+
+	// 鼠标移出canvas触发
+	canvas.onmouseout = function(e) {
+		e.preventDefault()// 禁止默认事件
+		isMouseDown = false
+		drawCanvasWithMagnifer(false)
+	}
+
+	function changeFontSizeByScale(scale, fontSize) {
+		return fontSize * scale
+	}
+
+	// 根据scale绘图
+	function drawImageByScale(scale) {
+		var imageWidth = canvas.width * scale
+		var imageHeight = canvas.height * scale
+
+		// 1.方法一
+		// var sx = imageWidth / 2 - canvas.width / 2
+		// var sy = imageHeight / 2 - canvas.height / 2
+		// context.drawImage(image, sx, sy, canvas.width, canvas.height, 0, 0, canvas.width, canvas.height)
+
+		// 2.方法二
+		var dx = canvas.width / 2 - imageWidth / 2
+		var dy = canvas.height / 2 - imageHeight / 2
+		// 绘制新的canvas画布之前，清空canvas
+		context.clearRect(0, 0, canvas.width, canvas.height)// 清空整个canvas
+		context.drawImage(image, dx, dy, imageWidth, imageHeight)
+
+		// 3.离屏canvas，将第二个canvas中的内容加载到第一个canvas上
+		context.drawImage(watermarkCanvas, canvas.width - watermarkCanvas.width,
+												canvas.height - watermarkCanvas.height)
+	}
+
+	// 绘制放大镜
+	function drawCanvasWithMagnifer(isShowMagnifer, point) {
+		// 1. 重绘整个canvas
+		context.clearRect(0, 0, canvas.width, canvas.height)
+		// 2. 
+		context.drawImage(image, 0, 0, canvas.width, canvas.height)
+		if(isShowMagnifer == true) {
+			// 3. 绘制放大镜
+			drawMagnifier(point)
+		}
+	}
+
+	// 放大镜
+	function drawMagnifier(point) {
+		var imageLG_cx = point.x * magnifyingGlassScale
+		var imageLG_cy = point.y * magnifyingGlassScale
+
+		var mr = 100// 半径
+
+		var sx = imageLG_cx - mr
+		var sy = imageLG_cy - mr
+
+		var dx = point.x - mr
+		var dy = point.y - mr
+
+		context.save()// 保存当前状态
+
+		context.lineWidth = 10.0
+		context.strokeStyle = "#069"
+		// 绘制圆 start
+		context.beginPath()
+		context.arc(point.x, point.y, mr, 0, Math.PI*2)// 定义圆
+		context.stroke()
+
+		context.clip()// 设置剪辑区域
+		// 绘制圆 end
+
+		context.drawImage(magnifyingGlassCanvas, sx, sy, 2*mr, 2*mr, dx ,dy, 2*mr, 2*mr)
+
+		context.restore()// 恢复状态
+	}
+
+</script>
+</html>
